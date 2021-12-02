@@ -1,0 +1,19 @@
+[Unit]
+Description=Redis Cluster Proxy
+Documentation=https://github.com/RedisLabs/redis-cluster-proxy
+After=network.target
+PartOf=redis-cluster-proxy.service
+
+[Service]
+Type=simple
+ExecStart={{ redis_cluster_proxy_install_dir }}/bin/redis-cluster-proxy -c {{ redis_cluster_proxy_conf_dir }}/proxy.conf
+PIDFile={{ redis_cluster_proxy_run_dir }}/redis-cluster-proxy.pid
+Restart=on-failure
+User={{ redis_cluster_proxy_user }}
+Group={{ redis_cluster_proxy_group }}
+
+ExecStop=/bin/kill -s TERM $MAINPID
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

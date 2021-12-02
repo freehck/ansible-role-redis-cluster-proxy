@@ -1,0 +1,6 @@
+---
+
+- name: "{{ redis_cluster_proxy_task_prefix }} restart redis-cluster-proxy"
+  systemd:
+    name: "redis-cluster-proxy"
+    state: restarted

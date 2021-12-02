@@ -1,0 +1,96 @@
+---
+
+### BUILD REDIS PROXY AND INSTALL BINARIES
+
+- name: "{{ redis_cluster_proxy_task_prefix }} check if redis installed: {{ redis_cluster_proxy_install_dir }}/bin/redis-cluster-proxy"
+  stat:
+    path: "{{ redis_cluster_proxy_install_dir }}/bin/redis-cluster-proxy"
+  register: redis_cluster_proxy_binary
+  changed_when: false
+
+- block:
+
+  - name: "{{ redis_cluster_proxy_task_prefix }} download tarball: {{ redis_cluster_proxy_tarball_tempfile }}"
+    get_url:
+      url: "{{ redis_cluster_proxy_tarball_url }}"
+      dest: "{{ redis_cluster_proxy_tarball_tempfile }}"
+      checksum: "sha256:{{ redis_cluster_proxy_tarball_sha256sum }}"
+  
+  - name: "{{ redis_cluster_proxy_task_prefix }} unpack tarball: {{ redis_cluster_proxy_tarball_tempfile }}"
+    unarchive:
+      src: "{{ redis_cluster_proxy_tarball_tempfile }}"
+      dest: "{{ redis_cluster_proxy_src_dir }}"
+      remote_src: true
+      extra_opts: [ "--strip-components=1" ]
+  
+  - name: "{{ redis_cluster_proxy_task_prefix }} build binaries: {{ redis_cluster_proxy_src_dir }}"
+    command: "make"
+    args:
+      chdir: "{{ redis_cluster_proxy_src_dir }}"
+
+  - name: "{{ redis_cluster_proxy_task_prefix }} install binaries: {{ redis_cluster_proxy_install_dir }}/bin"
+    copy:
+      src: "{{ redis_cluster_proxy_src_dir }}/src/{{ file }}"
+      dest: "{{ redis_cluster_proxy_install_dir }}/bin/{{ file }}"
+      mode: 0755
+      remote_src: true
+    loop_control:
+      loop_var: file
+    loop:
+      - redis-cluster-proxy
+
+  when: not redis_cluster_proxy_binary.stat.exists
+
+### CONFIGURE SYSTEM FOR REDIS PROXY
+
+- name: "{{ redis_cluster_proxy_task_prefix }} create profile"
+  copy:
+    dest: /etc/profile.d/redis-cluster-proxy.sh
+    content: 'PATH=$PATH:{{ redis_cluster_proxy_install_dir }}/bin'
+
+- name: "{{ redis_cluster_proxy_task_prefix }} create group: {{ redis_cluster_proxy_group }}"
+  group:
+    name: "{{ redis_cluster_proxy_group }}"
+    state: present
+
+- name: "{{ redis_cluster_proxy_task_prefix }} create user: {{ redis_cluster_proxy_user }}"
+  user:
+    name: "{{ redis_cluster_proxy_user }}"
+    group: "{{ redis_cluster_proxy_group }}"
+    shell: /bin/false
+    state: present
+    system: true
+    createhome: false
+
+- name: "{{ redis_cluster_proxy_task_prefix }} create directories"
+  file:
+    path: "{{ path }}"
+    state: directory
+    owner: "{{ redis_cluster_proxy_user }}"
+    group: "{{ redis_cluster_proxy_group }}"
+    mode: 0755
+  loop_control:
+    loop_var: path
+  loop:
+    - "{{ redis_cluster_proxy_conf_dir }}"
+    - "{{ redis_cluster_proxy_run_dir }}"
+
+- name: "{{ redis_cluster_proxy_task_prefix }} copy systemd service"
+  template:
+    src: "{{ redis_cluster_proxy_service_tmpl }}"
+    dest: /lib/systemd/system/redis-cluster-proxy.service
+    mode: 0644
+
+### CONFIGURE AND START REDIS PROXY
+
+- name: "{{ redis_cluster_proxy_task_prefix }} copy config"
+  template:
+    src: "{{ redis_cluster_proxy_conf_tmpl }}"
+    dest: "{{ redis_cluster_proxy_conf_dir }}/proxy.conf"
+  notify: "{{ redis_cluster_proxy_task_prefix }} restart redis-cluster-proxy"
+
+- name: "{{ redis_cluster_proxy_task_prefix }} start redis-cluster-proxy"
+  systemd:
+    name: "redis-cluster-proxy"
+    state: started
+    enabled: true

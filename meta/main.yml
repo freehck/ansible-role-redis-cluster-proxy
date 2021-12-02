@@ -1,0 +1,34 @@
+---
+galaxy_info:
+  author: Dmitrii Kashin
+  description: redis cluster proxy
+  role_name: redis_cluster_proxy
+  license: MIT
+
+  min_ansible_version: 2.9
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - all
+    - name: Debian
+      versions:
+        - all
+
+  galaxy_tags:
+    - redis-cluster-proxy
+
+dependencies:
+  
+  - role: freehck.pkg_install
+    vars:
+      pkg_install_packages:
+        - make
+        - gcc
+        - pkg-config
+
+  - role: freehck.mkdir
+    vars:
+      mkdir_directories:
+        - "{{ redis_cluster_proxy_src_dir }}"
+        - "{{ redis_cluster_proxy_install_dir }}/bin"

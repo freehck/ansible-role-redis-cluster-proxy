@@ -1,0 +1,13 @@
+
+bind {{ redis_cluster_proxy_bind_addr }}
+port {{ redis_cluster_proxy_bind_port }}
+
+daemonize no
+threads {{ redis_cluster_proxy_threads }}
+pidfile {{ redis_cluster_proxy_run_dir }}/redis-cluster-proxy.pid
+logfile ""
+
+{% for node in redis_cluster_proxy_nodes %}
+cluster {{ node.addr }}:{{ node.port }}
+{% endfor %}
+

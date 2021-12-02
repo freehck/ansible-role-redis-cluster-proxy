@@ -1,0 +1,11 @@
+---
+
+- name: "{{ redis_cluster_task_prefix }} get id of the master node: {{ master_instance.name }}"
+  shell: "{{ redis_cluster_install_dir }}/bin/redis-cli -h {{ master_instance.addr }} -p {{ master_instance.port }} CLUSTER NODES | grep myself | cut -d' ' -f1"
+  register: redis_cluster_id
+  changed_when: false
+  run_once: true
+
+- set_fact:
+    redis_cluster_master_nodes_with_ids: "{{ redis_cluster_master_nodes_with_ids | default([]) + [ master_instance | combine({'id': redis_cluster_id.stdout}) ] }}"
+  no_log: true
